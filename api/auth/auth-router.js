@@ -1,39 +1,46 @@
 const router = require('express').Router();
+const { checkUsernameExists, checkUsernameFree, noMissingInformation, noMissingCredentials, checkPhoneNumberFree, checkPhoneNumberLength } = require('./auth-middleware');
+const Users = require('../users/users-model');
 const bcrypt = require('bcryptjs');
-const { validateEmpty, validateLogin, validateRegister, validatePhone } = require('./auth-middleware');
+const tokenBuilder = require('./token-builder');
 
-const Users = require('../users/users.model');
-const tokenBuilder = require("./token-builder.js");
-
-router.post('/register', validateEmpty, validateRegister, validatePhone, (req, res, next) => {
-    const { username, password, phone } = req.body;
+router.post("/register", noMissingInformation, checkUsernameFree, checkPhoneNumberLength, checkPhoneNumberFree, (req, res, next) => {
+    const user = req.body;
     const rounds = process.env.BCRYPT_ROUNDS || 8;
-    const hash = bcrypt.hashSync(password, rounds);
-
-    Users.add({ username, password: hash, phone })
-        .then(newUser => {
-            res.status(201).json({
-                message: `You have successfully created an account with username ${newUser.username}`
-            })
-        })
-        .catch(next)
+    const hash = bcrypt.hashSync(user.password, rounds);
+    user.password = hash;
+  
+    Users.add(user)
+      .then(addedUser => {
+        res.status(201).json(addedUser);
+      })
+      .catch(next);
 });
 
-router.post('/login', validateEmpty, validateLogin, (req, res, next) => {
-    let { password } = req.body;
+router.post("/login", noMissingCredentials, checkUsernameExists, (req, res) => {
+    const { username, password } = req.body;
     if (bcrypt.compareSync(password, req.user.password)) {
-        const token = tokenBuilder(req.user);
-        res.json({
-            message: `Welcome back ${req.user.username}`,
-            token,
-            user_id:req.user.user_id,
-        });
+        const token = tokenBuilder(req.user)
+        req.session.user = req.user
+        const { user_id } = req.user;
+        res.status(200).json({message: `Welcome ${username}!`, user_id, token})
     } else {
-        next({
-            status: 401,
-            message: 'invalid credentials'
-        });
+        res.status(401).json({message: "Invalid credentials"})
     }
-});
+}) 
+
+router.get("/logout", (req, res, next) => {
+    if (req.session.user) {
+        req.session.destroy(error => {
+          if (error) {
+            res.status(200).json({message: "Error logging out."})
+          } else {
+            res.status(200).json({message: "Logged out."})
+          }
+        });
+      } else {
+        res.status(200).json({message: "There was no session to begin with."})
+    }
+})
 
 module.exports = router;

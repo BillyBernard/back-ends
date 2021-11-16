@@ -1,73 +1,77 @@
-const User = require('../users/users.model');
-const { phone } = require('phone');
+const Users = require('../users/users-model')
 
-function isNotEmptyString(str) {
-    return typeof str === 'string' && str.trim().length > 0
+const checkUsernameExists = (req, res, next) => {
+    const { username } = req.body;
+    Users.getBy({ username })
+        .then(exists => {
+            if (!exists.length) {
+                res.status(401).json({message: "Invalid credentials"})
+            } else {
+                req.user = exists[0]
+                next();
+            }
+        })
+        .catch(next);
 }
 
-const validateEmpty = (req, res, next) => {
-    const { username, password } = req.body;
-    if (isNotEmptyString(username) && isNotEmptyString(password)) {
+function checkUsernameFree(req, res, next) {
+    const { username } = req.body;
+    Users.getBy({ username })
+        .then(exists => {
+            if (exists.length) {
+                res.status(422).json({message: "Username taken"})
+            } else {
+                next();
+            }
+        })
+        .catch(next)
+}
+
+const noMissingInformation = (req, res, next) => {
+    const { username, password, phone_number } = req.body;
+    if (!username || !password || !phone_number) {
+        res.status(422).json({message: "Username, password, and mobile number are required."})
+    } else {
         next()
-    } else {
-        return next(({
-            status: 401,
-            message: 'username and password required'
-        }));
-    }
-};
-
-const validateLogin = async (req, res, next) => {
-    const { username } = req.body;
-    const [user] = await User.findBy({ username });
-    try {
-        if (!user) {
-            return next({
-                status: 401,
-                message: 'invalid credentials'
-            });
-        } else {
-            req.user = user;
-            next();
-        }
-    } catch (err) {
-        next(err)
-    }
-};
-
-const validateRegister = async (req, res, next) => {
-    const { username } = req.body;
-    const [user] = await User.findBy({ username });
-    try {
-        if (!user) {
-            req.user = user;
-            next();
-        } else {
-            return next({
-                status: 401,
-                message: 'username taken'
-            });
-        }
-    } catch (err) {
-        next(err)
-    }
-};
-
-const validatePhone = (req, res, next) => {
-    const { isValid } = phone(req.body.phone)
-    if (isValid) {
-        next();        
-    } else {
-        return next({
-            status: 401,
-            message: 'invalid phone number'
-        });
     }
 }
+
+const noMissingCredentials = (req, res, next) => {
+    const { username, password} = req.body;
+    if (!username || !password) {
+        res.status(422).json({message: "Both username and password are required."})
+    } else {
+        next()
+    }
+}
+
+function checkPhoneNumberFree(req, res, next) {
+    const { phone_number } = req.body;
+    Users.getBy({ phone_number })
+        .then(exists => {
+            if (exists.length) {
+                res.status(422).json({message: "Phone number already in use."})
+            } else {
+                next();
+            }
+        })
+        .catch(next)
+}
+
+function checkPhoneNumberLength(req, res, next) {
+    const { phone_number } = req.body;
+    if(phone_number.length !== 10) {
+      res.status(422).json({message: "Please enter a valid phone number (10 digits)."})
+    } else {
+      next();
+    }
+  }
+
 module.exports = {
-    validateEmpty,
-    validateLogin,
-    validatePhone,
-    validateRegister,
-    isNotEmptyString,
-};
+    checkUsernameExists,
+    checkUsernameFree,
+    noMissingInformation,
+    noMissingCredentials,
+    checkPhoneNumberFree,
+    checkPhoneNumberLength
+}
