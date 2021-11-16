@@ -1,31 +1,28 @@
-const jwtDecode = require('jwt-decode');
-const Plants = require('./plants.model');
-const Users = require('../users/users.model');
+const Users = require('../users/users-model')
 
-
-const validateCreate = async (req, res, next) => {
-    const { username } = jwtDecode(req.headers.authorization);
-    const [udb] = await Users.findBy({ username });
-    const { nickname } = req.body;
-    const user_id = udb.user_id;
-
-    const [plant] = await Plants.getPlantBy({ nickname, user_id });
-        try {
-            if (!plant) {
-            req.udb = udb
-            req.plant = plant;
-            next();
-        } else {
-            return next({
-                status: 401,
-                message: 'This plant already on your list'
-            });
-        }
-    } catch (err) {
-        next(err)
+const noMissingInformation = (req, res, next) => {
+    const { nickname, species, h2oFrequency, user_id } = req.body;
+    if (!nickname || !species || !h2oFrequency || !user_id) {
+        res.status(422).json({message: "The following entries: user_id, nickname, species, and h2oFrequency are required."})
+    } else {
+        next()
     }
-};
+}
+
+const checkUserIdExists = (req, res, next) => {
+    const { user_id } = req.body;
+    Users.getById(user_id)
+        .then(exists => {
+            if(!exists) {
+                res.status(401).json({message: `User with user_id ${user_id} does not exist.`})
+            } else {
+                next();
+            }
+        })
+        .catch(next);
+}
 
 module.exports = {
-    validateCreate,
+    noMissingInformation,
+    checkUserIdExists,
 }

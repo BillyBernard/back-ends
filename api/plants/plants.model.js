@@ -1,39 +1,36 @@
-const db = require('../data/db-config.js');
+const db = require('../data/db-config');
 
-function getAllPlants() {
-    return db('plants as p')
+function get() {
+  return db('plants')
 }
 
-function getPlantById(plant_id) {
-    return db('plants as p')
-        .select('*')
-        .where('p.plant_id', plant_id)
-        .first();
+function getBy(filter) {
+  return db('plants').where(filter).orderBy("plant_id")
 }
 
-function getPlantBy(filter, user_id) {
-    return db('plants as p')
-        .select('*')
-        .where(filter, user_id);
+function getById(plant_id) {
+  return db('plants').where('plant_id', plant_id).first();
 }
 
-async function addPlant(user_id, plant) {
-    const [createdPlant] = await db('plants')
-        .insert({...plant, user_id}, [
-            "plant_id",
-            "image_url",
-            "light_requirement",
-            "nickname",
-            "species",
-            "user_id",
-            "water_frequency",
-        ]);
-    return createdPlant
+function update(plant_id, changes) {
+  return db('plants').where('plant_id', plant_id).first().update(changes)
+}
+
+function remove(plant_id) {
+  return db('plants').where('plant_id', plant_id).first().del();
+}
+
+async function add(newPlant) {
+  const [plant] = await db('plants').insert(newPlant, ['plant_id', 'nickname', 'species', 'h2oFrequency', 'image', 'user_id'])
+  return plant;
 }
 
 module.exports = {
-    addPlant,
-    getPlantBy,
-    getAllPlants,
-    getPlantById,
+  get,
+  getBy,
+  getById,
+  add,
+  update,
+  remove,
 };
+ 
