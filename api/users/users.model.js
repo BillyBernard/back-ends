@@ -1,38 +1,40 @@
-const db = require('../data/db-config.js');
+const db = require('../data/db-config');
 
-function getAllUsers() {
-    return db('users as u')
-        .select('u.user_id', 'u.username', 'u.phone');
-}
-
-function findBy(filter) {
-    return db('users as u')
-        .select('u.user_id', 'u.username', 'u.password', 'u.phone')
-        .where(filter);
+function get() {
+  return db('users')
 }
 
-function findById(user_id) {
-    return db('users as u')
-        .select('u.user_id', 'u.username', 'u.password', 'u.phone')
-        .where('u.user_id', user_id)
-        .first();
+function getBy(filter) {
+  return db('users').where(filter).orderBy("user_id")
 }
-async function add({ username, password, phone }) {
-    const [newUserObject] = await db('users')
-        .insert({ username, password, phone }, ['user_id', 'username', 'phone'])
-    return newUserObject // { user_id: 7, username: 'foo', phone: 'xxxxxxx' }
+
+function getById(user_id) {
+  return db('users').where('user_id', user_id).first();
 }
-const update = async (username, changes) => {
-    const updatedInfo = await db('users')
-        .where({ username })
-        .update(changes, ['username', 'phone', 'password'])
-    return updatedInfo
+
+function getUserPlants(user_id) {
+  return db("users")
+    .leftJoin('plants', 'users.user_id', 'plants.user_id')
+    .where("users.user_id", user_id)
+    .select('h2oFrequency', 'image', 'nickname', 'plant_id', 'species')
+    .orderBy('plant_id')
+}
+
+
+function update(user_id, changes) {
+  return db('users').where('user_id', user_id).first().update(changes)
+}
+
+async function add(newUser) {
+  const [user] = await db('users').insert(newUser, ['user_id', 'username', 'phone_number'])
+  return user;
 }
 
 module.exports = {
-    add,
-    findBy,
-    update,
-    findById,
-    getAllUsers,
+  get,
+  getBy,
+  getById,
+  getUserPlants,
+  add,
+  update,
 };
